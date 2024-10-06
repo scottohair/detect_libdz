@@ -125,21 +125,35 @@ def check_libdz_activity_monitor():
 
 def search_libdz() -> List[str]:
     """
-    Searches the file system for 'libdz.dylib'.
+    Searches the file system for both visible and hidden 'libdz.dylib' files.
     Returns a list of file paths where the library is found.
     """
-    logging.info("Searching the file system for libdz.dylib...")
+    logging.info("Searching the file system for libdz.dylib (including hidden files)...")
     try:
-        find_output = subprocess.check_output(["find", "/", "-name", "libdz.dylib"], text=True, stderr=subprocess.DEVNULL)
+        # Use find to locate both normal and hidden versions of libdz.dylib
+        find_command = ["sudo", "find", "/", "-name", "libdz.dylib", "-o", "-name", ".libdz.dylib"]
+        
+        # Setting a timeout to prevent long-running searches
+        find_output = subprocess.check_output(find_command, text=True, stderr=subprocess.DEVNULL, timeout=60)
+        
         if find_output:
             file_paths = find_output.strip().split("\n")
-            logging.info(f"libdz.dylib found at the following locations:\n{find_output}")
+            logging.info(f"libdz.dylib found at the following locations (including hidden files):\n{find_output}")
             return file_paths
         else:
-            logging.info("libdz.dylib not found in the file system.")
+            logging.info("libdz.dylib (including hidden files) not found in the file system.")
             return []
+    
+    except subprocess.TimeoutExpired:
+        logging.error("The search for libdz.dylib timed out.")
+        return []
+    
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error running find command: {e}")
+        return []
+    
     except Exception as e:
-        logging.exception("An unexpected error occurred in search_libdz.")
+        logging.exception("An unexpected error occurred during the search for libdz.dylib.")
         return []
 
 def copy_libdz_to_current_dir(file_path: str):
